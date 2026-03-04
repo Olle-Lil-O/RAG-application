@@ -1,197 +1,124 @@
 # RAG-application
 
-## Database quick start
+## Local data population (single command)
 
-This project runs PostgreSQL + pgvector in Docker Compose.
-
-- Service name: `database`
-- Container name: `pgvector_database`
-- Host port: `5431` (mapped to container `5432`)
-- Database: `postgres`
-- User: `postgres`
-- Password: `password`
-
-Start everything:
+Use `pipeline.py` from the project root. This is the recommended cross-platform flow for everyone.
 
 ```bash
-docker compose up --build
+uv run pipeline.py
 ```
 
-Start only the database:
+The pipeline targets your local Docker PostgreSQL (via `.env`) and populates:
+
+- `knowledge_base_mini` (local embeddings)
+- `knowledge_base_sm` (local embeddings)
+
+It also truncates `knowledge_base_mini`, `knowledge_base_sm`, and `knowledge_base_md` before loading (unless disabled with options below).
+
+## Prerequisites
+
+Start local DB + migrations:
 
 ```bash
 docker compose up -d database
-```
-
-Check logs:
-
-```bash
-docker compose logs -f database
-```
-
-Stop services:
-
-```bash
-docker compose down
-```
-**Add `-v`option if you  need to remove the volumes.**<>
-
-## Environment strategy
-
-Use separate env files per runtime context:
-
-- `.env`: host-local app/script runtime (local PostgreSQL over `localhost:5431`, Azure API vars, chunking vars)
-- `project.env`: container-internal values (Compose/Flyway against `database:5432`)
-- `remote/remote.env`: host-local runtime targeting remote PostgreSQL (Azure Postgres)
-
-Helper scripts:
-
-```bash
-source scripts/use-env.sh local
-source scripts/use-env.sh remote
-```
-
-Populate wrappers:
-
-```bash
-bash scripts/populate_local.sh
-bash scripts/populate_remote.sh
-```
-
-Chunking behavior is environment-driven:
-
-- `CHUNKER=spacy|semantic`
-- `CHUNKING_PROVIDER=local|azure` (semantic mode boundary model provider)
-- `CHUNKING_LOCAL_MODEL=...` (semantic mode + local provider)
-- `BREAKPOINT_THRESHOLD_TYPE=percentile|standard_deviation|interquartile` (semantic mode)
-- `MAX_SENTENCES=5` (spacy mode)
-
-## Connect to the database container (`docker exec -it`)
-
-Open a `psql` session directly:
-
-```bash
-docker exec -it pgvector_database psql -U postgres -d postgres
-```
-
-Or open a shell first, then connect:
-
-```bash
-docker exec -it pgvector_database bash
-psql -U postgres -d postgres
-```
-
-Inside `psql`, useful commands:
-
-```sql
-\l
-\dt
-\d+ knowledge_base
-SELECT * FROM flyway_schema_history ORDER BY installed_rank;
-```
-
-## Migrations (Flyway)
-
-SQL migration files are in `database-migrations/`.
-
-Run database + migrations together (recommended):
-
-```bash
-docker compose up database database-migrations --force-recreate --abort-on-container-exit
-```
-
-Expected result: Flyway applies migrations and exits with code `0`.
-
-If the database is already running, run migrations only:
-
-```bash
 docker compose run --rm database-migrations
 ```
 
-
-
-## Connect from host tools
-
-Example with local `psql` client:
+Install deps (first time only):
 
 ```bash
-PGPASSWORD=password psql -h localhost -p 5431 -U postgres -d postgres
+uv sync
 ```
 
-## Connect from local Python
-
-When connecting from your host machine (not from inside Docker), use:
-
-- Host: `localhost`
-- Port: `5431`
-- User: `postgres`
-- Password: `password`
-- Database: `postgres`
-
-Important: PostgreSQL inside the container listens on `5432`, but this project maps it to host port `5431` (`5431:5432`).
-Use `5431` from local Python so you do not collide with a local PostgreSQL instance on `5432`.
-
-### Connection string (DSN)
-
-```text
-postgresql://postgres:password@localhost:5431/postgres
-```
-
-### Environment variables
+## CLI options
 
 ```bash
-export PGHOST=localhost
-export PGPORT=5431
-export PGUSER=postgres
-export PGPASSWORD=password
-export PGDATABASE=postgres
+uv run pipeline.py --help
 ```
 
-### Python (`dotenv` + `os`)
+Available options:
 
-Install dependency:
+- `--env-file <path>`: extra env file loaded last (default: `.env`)
+- `--pdf-path <path>`: override input PDF path
+- `--source <name>`: override source name stored in DB
+- `--skip-empty`: do not truncate tables before loading
+- `--dry-run`: run preprocessing without DB writes
+- `--include-azure-md`: also populate `knowledge_base_md` using Azure embeddings
+
+## Common examples
+
+Default local run:
 
 ```bash
-pip install python-dotenv
+uv run pipeline.py
 ```
 
-Create a `.env` file (for local app usage):
+Non-destructive check:
+
+```bash
+uv run pipeline.py --dry-run
+```
+
+Use a custom PDF:
+
+```bash
+uv run pipeline.py --pdf-path data/mydoc.pdf --source mydoc.pdf
+```
+
+Include Azure `knowledge_base_md` step:
+
+```bash
+uv run pipeline.py --include-azure-md
+```
+
+## Environment variables
+
+`pipeline.py` loads env files in this order:
+
+1. `project.env`
+2. `.env`
+3. `--env-file` (defaults to `.env`)
+
+### Required for local container DB
+
+Set these in `.env`:
 
 ```dotenv
 PGHOST=localhost
 PGPORT=5431
+PGDATABASE=postgres
 PGUSER=postgres
 PGPASSWORD=password
-PGDATABASE=postgres
+PGSSLMODE=disable
 ```
 
-Read variables and build a DSN:
+### Chunking and preprocessing
 
-```python
-import os
-from dotenv import load_dotenv
+Optional, with defaults shown:
 
-load_dotenv()
+```dotenv
+PDF_PATH=data/euaiact.pdf
+SOURCE_NAME=euaiact.pdf
 
-db_host = os.getenv("PGHOST", "localhost")
-db_port = os.getenv("PGPORT", "5431")
-db_user = os.getenv("PGUSER", "postgres")
-db_password = os.getenv("PGPASSWORD", "password")
-db_name = os.getenv("PGDATABASE", "postgres")
+CHUNKER=spacy
+SPACY_MODEL=en_core_web_sm
+MAX_SENTENCES=5
 
-dsn = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
-print(dsn)
+CHUNKING_PROVIDER=local
+CHUNKING_LOCAL_MODEL=sentence-transformers/all-MiniLM-L6-v2
+CHUNKING_DEPLOYMENT=
+BREAKPOINT_THRESHOLD_TYPE=percentile
+
+MAX_EMBED_TOKENS=2000
+SPLIT_OVERLAP_TOKENS=80
 ```
 
-### Python (`psycopg`)
+### Azure variables (only for `--include-azure-md`)
 
-```python
-import psycopg
-
-conn = psycopg.connect("postgresql://postgres:password@localhost:5431/postgres")
-with conn.cursor() as cur:
-    cur.execute("SELECT version();")
-    print(cur.fetchone())
-conn.close()
+```dotenv
+AZURE_ENDPOINT=...
+AZURE_API_KEY=...
+DEPLOY_MEDIUM=...
+AZURE_API_VERSION=2025-03-01-preview
 ```
 
