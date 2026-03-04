@@ -1,0 +1,14 @@
+# Database data directory
+pgdata/
+
+# Environment files
+.env
+.env.*
+*.env
+project.env
+
+# Python virtual environments
+.venv/
+venv/
+env/
+ENV/
