@@ -56,7 +56,7 @@ function Invoke-Step {
         & $Command[0] @($Command[1..($Command.Length - 1)])
     }
     if ($LASTEXITCODE -ne 0) {
-        throw "Command failed with exit code $LASTEXITCODE: $($Command -join ' ')"
+        throw "Command failed with exit code ${LASTEXITCODE}: $($Command -join ' ')"
     }
 }
 
