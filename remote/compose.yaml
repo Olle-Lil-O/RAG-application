@@ -1,0 +1,8 @@
+services:
+  database-migrations-remote:
+    image: flyway/flyway:10
+    env_file:
+      - ./remote.env
+    volumes:
+      - ../database-migrations:/flyway/sql:ro
+    command: -connectRetries=60 -baselineOnMigrate=true migrate
