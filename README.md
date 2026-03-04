@@ -34,7 +34,37 @@ Stop services:
 ```bash
 docker compose down
 ```
-**Add `-v`option if you  need to remove the volumes.**
+**Add `-v`option if you  need to remove the volumes.**<>
+
+## Environment strategy
+
+Use separate env files per runtime context:
+
+- `.env`: host-local app/script runtime (local PostgreSQL over `localhost:5431`, Azure API vars, chunking vars)
+- `project.env`: container-internal values (Compose/Flyway against `database:5432`)
+- `remote/remote.env`: host-local runtime targeting remote PostgreSQL (Azure Postgres)
+
+Helper scripts:
+
+```bash
+source scripts/use-env.sh local
+source scripts/use-env.sh remote
+```
+
+Populate wrappers:
+
+```bash
+bash scripts/populate_local.sh
+bash scripts/populate_remote.sh
+```
+
+Chunking behavior is environment-driven:
+
+- `CHUNKER=spacy|semantic`
+- `CHUNKING_PROVIDER=local|azure` (semantic mode boundary model provider)
+- `CHUNKING_LOCAL_MODEL=...` (semantic mode + local provider)
+- `BREAKPOINT_THRESHOLD_TYPE=percentile|standard_deviation|interquartile` (semantic mode)
+- `MAX_SENTENCES=5` (spacy mode)
 
 ## Connect to the database container (`docker exec -it`)
 
