@@ -11,6 +11,12 @@ This project runs PostgreSQL + pgvector in Docker Compose.
 - User: `postgres`
 - Password: `password`
 
+Start everything:
+
+```bash
+docker compose up --build
+```
+
 Start only the database:
 
 ```bash
@@ -28,6 +34,7 @@ Stop services:
 ```bash
 docker compose down
 ```
+**Add `-v`option if you  need to remove the volumes.**
 
 ## Connect to the database container (`docker exec -it`)
 
@@ -71,11 +78,7 @@ If the database is already running, run migrations only:
 docker compose run --rm database-migrations
 ```
 
-Verify applied migrations:
 
-```bash
-docker exec -it pgvector_database psql -U postgres -d postgres -c "SELECT version, description, success, installed_on FROM flyway_schema_history ORDER BY installed_rank;"
-```
 
 ## Connect from host tools
 
