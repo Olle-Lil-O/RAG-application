@@ -12,3 +12,9 @@ project.env
 venv/
 env/
 ENV/
+
+# pycache and other Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
