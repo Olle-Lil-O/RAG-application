@@ -50,24 +50,31 @@ function Invoke-Step {
         Write-Host '  (NO_EXEC enabled; command not executed)'
         return
     }
-    & $Command[0] $Command[1..($Command.Length - 1)]
+    if ($Command.Length -le 1) {
+        & $Command[0]
+    } else {
+        & $Command[0] @($Command[1..($Command.Length - 1)])
+    }
+    if ($LASTEXITCODE -ne 0) {
+        throw "Command failed with exit code $LASTEXITCODE: $($Command -join ' ')"
+    }
 }
 
 if (-not $skipEmpty) {
     Invoke-Step @('pwsh', '-File', 'scripts/empty_tables.ps1')
 }
 
-Invoke-Step @('uv', 'run', 'python', 'scripts/preprocess.py') + $baseArgs + @(
+Invoke-Step -Command (@('uv', 'run', 'python', 'scripts/preprocess.py') + $baseArgs + @(
     '--table', 'knowledge_base_mini',
     '--provider', 'local',
     '--local-model', 'sentence-transformers/all-MiniLM-L6-v2'
-)
+))
 
-Invoke-Step @('uv', 'run', 'python', 'scripts/preprocess.py') + $baseArgs + @(
+Invoke-Step -Command (@('uv', 'run', 'python', 'scripts/preprocess.py') + $baseArgs + @(
     '--table', 'knowledge_base_sm',
     '--provider', 'local',
     '--local-model', 'BAAI/bge-large-en-v1.5'
-)
+))
 
 if (-not $noExec) {
     if (-not $env:AZURE_ENDPOINT) { throw 'AZURE_ENDPOINT is required for Azure embeddings' }
@@ -75,12 +82,12 @@ if (-not $noExec) {
     if (-not $env:DEPLOY_MEDIUM) { throw 'DEPLOY_MEDIUM is required for knowledge_base_md' }
 }
 
-Invoke-Step @('uv', 'run', 'python', 'scripts/preprocess.py') + $baseArgs + @(
+Invoke-Step -Command (@('uv', 'run', 'python', 'scripts/preprocess.py') + $baseArgs + @(
     '--table', 'knowledge_base_md',
     '--provider', 'azure',
     '--deployment', $env:DEPLOY_MEDIUM,
     '--azure-endpoint', $env:AZURE_ENDPOINT,
     '--azure-api-key', $env:AZURE_API_KEY
-)
+))
 
 Write-Host 'Populate-all pipeline completed.'
