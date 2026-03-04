@@ -23,11 +23,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--source", default=None, help="Source name override")
     parser.add_argument("--skip-empty", action="store_true", help="Skip truncating target tables")
     parser.add_argument("--dry-run", action="store_true", help="Run preprocess in dry-run mode")
-    parser.add_argument(
-        "--include-azure-md",
-        action="store_true",
-        help="Include `knowledge_base_md` Azure embedding stage",
-    )
     parser.add_argument("--mini", action="store_true", help="Populate only `knowledge_base_mini`")
     parser.add_argument("--small", action="store_true", help="Populate only `knowledge_base_sm`")
     parser.add_argument("--medium", action="store_true", help="Populate only `knowledge_base_md`")
@@ -226,9 +221,6 @@ def build_steps(args: argparse.Namespace) -> List[Dict[str, List[str]]]:
             ],
         },
     ]
-
-    if args.include_azure_md:
-        steps.append(_medium_step())
 
     return steps
 

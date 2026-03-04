@@ -45,7 +45,6 @@ Available options:
 - `--source <name>`: override source name stored in DB
 - `--skip-empty`: do not truncate tables before loading
 - `--dry-run`: run preprocessing without DB writes
-- `--include-azure-md`: also populate `knowledge_base_md` using Azure embeddings
 - `--mini`: populate only `knowledge_base_mini`
 - `--small`: populate only `knowledge_base_sm`
 - `--medium`: populate only `knowledge_base_md`
@@ -69,12 +68,6 @@ Use a custom PDF:
 
 ```bash
 uv run pipeline.py --pdf-path data/mydoc.pdf --source mydoc.pdf
-```
-
-Include Azure `knowledge_base_md` step:
-
-```bash
-uv run pipeline.py --include-azure-md
 ```
 
 Populate only medium (keep existing mini/small rows):
@@ -131,7 +124,7 @@ MAX_EMBED_TOKENS=2000
 SPLIT_OVERLAP_TOKENS=80
 ```
 
-### Azure variables (only for `--include-azure-md`)
+### Azure variables (required when using `--medium` or `--all`)
 
 ```dotenv
 AZURE_ENDPOINT=...
