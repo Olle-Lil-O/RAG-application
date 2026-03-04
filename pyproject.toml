@@ -32,8 +32,9 @@ dependencies = [
     "transformers>=4.51.3",
     "langchain-postgres>=0.0.13",
     "langchain-openai>=0.3.18",
-    "markitdown>=0.1.5",
+    "markitdown[all]>=0.1.5",
     "psycopg[binary]>=3.3.3",
     "psycopg2-binary>=2.9.11",
     "pdfplumber>=0.11.9",
+    "spacy>=3.8.11",
 ]
