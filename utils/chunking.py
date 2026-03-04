@@ -121,3 +121,45 @@ def chunk_semantically_embeddings(text, embeddings=None, breakpoint_threshold_ty
     )
     
     return [d.page_content for d in splitter.create_documents([text])]
+
+
+
+
+def normalize_pdf_markdown(text: str) -> str:
+    # Normalize whitespace
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    text = re.sub(r"[ \t]+", " ", text)
+
+    lines = [ln.strip() for ln in text.split("\n")]
+    paragraphs, buffer = [], []
+
+    for ln in lines:
+        if not ln:
+            if buffer:
+                paragraphs.append(" ".join(buffer))
+                buffer = []
+            continue
+
+        is_heading = ln.startswith("#") or bool(re.fullmatch(r"[A-Z0-9 ,./()\-]{8,}", ln))
+        is_list = bool(re.match(r"^([-*+]|\d+[.)])\s+", ln))
+
+        if is_heading or is_list:
+            if buffer:
+                paragraphs.append(" ".join(buffer))
+                buffer = []
+            paragraphs.append(ln)
+            continue
+
+        buffer.append(ln)
+
+        # If line ends like a sentence, flush paragraph candidate
+        if re.search(r"[.!?:;]$", ln):
+            paragraphs.append(" ".join(buffer))
+            buffer = []
+
+    if buffer:
+        paragraphs.append(" ".join(buffer))
+
+    cleaned = "\n\n".join(p.strip() for p in paragraphs if p.strip())
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    return cleaned
