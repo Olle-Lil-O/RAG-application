@@ -15,6 +15,8 @@ The pipeline targets your local Docker PostgreSQL (via `.env`) and populates:
 
 It also truncates `knowledge_base_mini`, `knowledge_base_sm`, and `knowledge_base_md` before loading (unless disabled with options below).
 
+Note: The same dataset/database setup is also available on a remote Azure PostgreSQL Flexible Server. Connection details can be requested from Paavo.
+
 ## Prerequisites
 
 Start local DB + migrations:
@@ -44,6 +46,10 @@ Available options:
 - `--skip-empty`: do not truncate tables before loading
 - `--dry-run`: run preprocessing without DB writes
 - `--include-azure-md`: also populate `knowledge_base_md` using Azure embeddings
+- `--mini`: populate only `knowledge_base_mini`
+- `--small`: populate only `knowledge_base_sm`
+- `--medium`: populate only `knowledge_base_md`
+- `--all`: populate mini + small + medium
 
 ## Common examples
 
@@ -69,6 +75,18 @@ Include Azure `knowledge_base_md` step:
 
 ```bash
 uv run pipeline.py --include-azure-md
+```
+
+Populate only medium (keep existing mini/small rows):
+
+```bash
+uv run pipeline.py --medium --skip-empty
+```
+
+Populate all three tables in one run:
+
+```bash
+uv run pipeline.py --all
 ```
 
 ## Environment variables
