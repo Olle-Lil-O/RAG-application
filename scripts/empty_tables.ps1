@@ -11,9 +11,9 @@ $sql = 'TRUNCATE TABLE knowledge_base_mini, knowledge_base_sm, knowledge_base_md
 $conn = "host=$pgHost port=$pgPort dbname=$pgDatabase user=$pgUser password=$pgPassword sslmode=$pgSslMode"
 
 if ($env:NO_EXEC -eq '1') {
-    Write-Host "[NO_EXEC] Would run: psql `"$conn`" -c `"$sql`""
+    Write-Host "[NO_EXEC] Would run: psql -d `"$conn`" --set ON_ERROR_STOP=1 --command `"$sql`""
     exit 0
 }
 
-psql $conn -v ON_ERROR_STOP=1 -c $sql
+psql -d $conn --set ON_ERROR_STOP=1 --command $sql
 Write-Host 'Tables truncated successfully.'
