@@ -65,7 +65,6 @@ def semantic_retrieve(
 ) -> list[RetrievalRow]:
     table_name, vector_dim = _profile_meta(profile)
     vector_list = _as_float_list(query_embedding)
-    vector_literal = _vector_literal(query_embedding)
 
     sql = f"""
         SELECT
@@ -86,6 +85,7 @@ def semantic_retrieve(
             cur.execute(sql, (vector_list, vector_list, top_k))
             cur.execute("RELEASE SAVEPOINT semantic_vector_bind")
         except PsycopgError:
+            vector_literal = _vector_literal(query_embedding)
             cur.execute("ROLLBACK TO SAVEPOINT semantic_vector_bind")
             cur.execute(sql, (vector_literal, vector_literal, top_k))
             cur.execute("RELEASE SAVEPOINT semantic_vector_bind")
@@ -135,7 +135,6 @@ def hybrid_retrieve(
 ) -> list[RetrievalRow]:
     _, vector_dim = _profile_meta(profile)
     vector_list = _as_float_list(query_embedding)
-    vector_literal = _vector_literal(query_embedding)
 
     function_name = f"search_knowledge_base_{profile}_hybrid"
     sql = f"""
@@ -149,6 +148,7 @@ def hybrid_retrieve(
             cur.execute(sql, (query_text, vector_list, top_k, candidate_k, rrf_k))
             cur.execute("RELEASE SAVEPOINT hybrid_vector_bind")
         except PsycopgError:
+            vector_literal = _vector_literal(query_embedding)
             cur.execute("ROLLBACK TO SAVEPOINT hybrid_vector_bind")
             cur.execute(sql, (query_text, vector_literal, top_k, candidate_k, rrf_k))
             cur.execute("RELEASE SAVEPOINT hybrid_vector_bind")
