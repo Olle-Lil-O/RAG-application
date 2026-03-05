@@ -1,0 +1,38 @@
+@startuml
+!theme plain
+
+title RAG Ingestion Architecture
+
+actor User
+
+rectangle "Loader UI / CLI" as loader {
+  component "Gradio loader\n(app_loader.py)" as gradio
+  component "Pipeline CLI\n(pipeline.py)" as pipeline
+}
+
+rectangle "Document processing" as processing {
+  node "scripts/preprocess.py" as preprocess
+  node "Chunking + embeddings" as chunking
+}
+
+database "PostgreSQL" as postgres {
+  component "pgvector extension" as pgvector
+  component "pg_search support" as pgsearch
+  component "Knowledge tables" as tables
+}
+
+component "Flyway migrations" as migrations
+
+User --> gradio : upload PDF / choose mini/small/medium
+User --> pipeline : CLI flags + profile selection
+gradio --> preprocess : build args -> run script
+pipeline --> preprocess : build args -> run script
+preprocess --> chunking : chunk PDF -> embed
+chunking --> tables : insert rows + metadata
+tables --> pgvector : vector columns
+tables --> pgsearch : lexical indexes
+migrations --> postgres : apply schema, indexes
+postgres --> User : [data available for chat/query tools]
+
+@enduml
+

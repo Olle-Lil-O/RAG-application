@@ -1,0 +1,35 @@
+
+@startuml
+!theme plain
+    title Query & Response Flow
+
+    actor User
+
+    rectangle "Chat UI" {
+    component "app_query.py" as chat_ui
+    component "ChatManagerWithTools" as chat_manager
+    }
+
+    rectangle "Retrieval + Reranking" {
+    component "utils.retrieval_functions" as retrieval
+    component "Context reranker" as reranker
+    }
+
+    cloud "Embedding + Model Services" as models {
+    component "HuggingFace / Azure embeddings" as embeddings
+    component "LLM / tool-enabled models" as llm
+    }
+
+    database "PostgreSQL + pgvector" as vector_db
+
+    User --> chat_ui : ask question / select sources
+    chat_ui --> chat_manager : loads PROFILE -> selects table + embedding
+    chat_manager --> retrieval : fetch context rows
+    retrieval --> vector_db : similarity search (pgvector tables)
+    retrieval --> reranker : rerank + context assembly
+    reranker --> llm : compose prompt + tool calls
+    llm --> User : responses (text, citations)
+    chat_manager --> embeddings : embed queries, metadata
+    embeddings --> vector_db : vector similarity
+
+@enduml
