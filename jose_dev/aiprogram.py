@@ -1,7 +1,6 @@
 """
-aiprogram.py
-------------
-EU AI Act Assistant — RAG-powered chatbot using a Gradio user interface.
+
+EU AI Act Assistant — a RAG chatbot using a Gradio user interface.
 
 Features:
 - Welcome screen with tips and popular topics
@@ -11,9 +10,6 @@ Features:
 - Suggested follow-up questions
 - "I don't know" handling when context is weak
 
-Run with:
-    python jose_dev/aiprogram.py
-Then open http://localhost:7860 in your browser.
 """
 
 import os
@@ -27,7 +23,7 @@ import gradio as gr
 # Allow imports from project root when running from jose_dev
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# ─── 1. Load environment variables ──────────────────────────────────────────
+# ─── Load environment variables ─────
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 
 AZURE_ENDPOINT = os.environ["AZURE_ENDPOINT"]
@@ -47,21 +43,16 @@ TOP_K = 5
 # Similarity threshold — below this we warn the user context may be weak
 CONFIDENCE_THRESHOLD = 0.75
 
-# ─── Popular topics shown when user types 'tips' ────────────────────────────
+# ─── Popular topics shown when user types 'tips' ────
 POPULAR_TOPICS = [
     "🔴 1. Prohibited AI practices — what is completely banned?",
     "⚠️ 2.  High-risk AI systems — which systems are considered high risk?",
     "🏛️ 3. Governance — who enforces the EU AI Act?",
     "🔍 4. Transparency — what must AI providers disclose?",
     "🤖 5. General purpose AI — how are large AI models regulated?",
-    "💼 6. Obligations for providers — what must companies do to comply?",
-    "🌍 7. Scope — which countries and companies does this apply to?",
-    "⏱️ 8. Timeline — when do the rules come into force?",
-    "🧪 9. Regulatory sandboxes — how can companies test AI safely?",
-    "🛡️ 10. Fundamental rights — how does the act protect citizens?",
 ]
 
-WELCOME_MESSAGE = """👋 **Hi! I'm an assistant specialised in the EU AI Act.**
+WELCOME_MESSAGE = """**Hi! I'm an assistant specialised in the EU AI Act.**
 
 I can help you understand the regulation, from prohibited practices to compliance obligations.
 
@@ -77,7 +68,7 @@ I can help you understand the regulation, from prohibited practices to complianc
 """
 
 
-# ─── 2. Set up clients ───────────────────────────────────────────────────────
+# ─── Set up clients ─────
 client = AzureOpenAI(
     azure_endpoint=AZURE_ENDPOINT,
     api_key=AZURE_API_KEY,
@@ -94,7 +85,7 @@ def get_connection():
     )
 
 
-# ─── 3. Embed a question ─────────────────────────────────────────────────────
+# ─── Embed a question ────
 def embed_question(question):
     response = client.embeddings.create(
         input=question,
@@ -103,7 +94,7 @@ def embed_question(question):
     return response.data[0].embedding
 
 
-# ─── 4. Search for relevant chunks ───────────────────────────────────────────
+# ─── Search for relevant chunks ────
 def search_similar_chunks(question_embedding, top_k=TOP_K):
     conn = get_connection()
     with conn.cursor() as cur:
@@ -119,7 +110,7 @@ def search_similar_chunks(question_embedding, top_k=TOP_K):
     return results  # list of (content, similarity_score)
 
 
-# ─── 5. Generate answer with GPT-4 ───────────────────────────────────────────
+# ─── Generate answer with GPT-4 ──────
 def generate_answer(question, chunks):
     context = "\n\n---\n\n".join([chunk for chunk, score in chunks])
 
@@ -152,7 +143,7 @@ Answer:"""
     return response.choices[0].message.content
 
 
-# ─── 6. LLM-as-judge: verify the answer is grounded ─────────────────────────
+# ─── LLM-as-judge: verify the answer is grounded ──────
 def judge_answer(question, answer, chunks, top_score):
     """
     Three-part judge:
@@ -206,7 +197,7 @@ ISSUES: describe any problems, or write 'none'"""
     return True, "ok", "none"
 
 
-# ─── 7. Suggest follow-up questions ──────────────────────────────────────────
+# ─── Suggest follow-up questions ─────
 def suggest_followups(question, answer):
     response = client.chat.completions.create(
         model=DEPLOY_GPT,
@@ -224,7 +215,7 @@ Answer: {answer}"""
     return response.choices[0].message.content.strip()
 
 
-# ─── 8. Confidence label from similarity score ───────────────────────────────
+# ─── Confidence label from similarity score ──────
 def confidence_label(score):
     if score >= 0.90:
         return "🟢 Very high confidence"
@@ -238,7 +229,7 @@ def confidence_label(score):
         return "🔴 Very low confidence — limited relevant content found"
 
 
-# ─── 9. Main chat function ────────────────────────────────────────────────────
+# ─── Main chat function ──────
 def chat(user_message, history):
     user_message = user_message.strip()
 
@@ -305,7 +296,7 @@ def chat(user_message, history):
         return history + [[user_message, error_msg]]
 
 
-# ─── 10. Gradio UI ────────────────────────────────────────────────────────────
+# ─── 1Gradio UI ───────
 with gr.Blocks(theme=gr.themes.Soft(), title="EU AI Act Assistant") as demo:
 
     gr.Markdown("""
@@ -351,6 +342,6 @@ with gr.Blocks(theme=gr.themes.Soft(), title="EU AI Act Assistant") as demo:
     )
 
 if __name__ == "__main__":
-    print("🚀 Starting EU AI Act Assistant...")
-    print("🌐 Open your browser at http://localhost:7867\n")
+    print("Starting EU AI Act Assistant...")
+    print("Open your browser at http://localhost:7867\n")
     demo.launch(server_name="0.0.0.0", server_port=7867)
