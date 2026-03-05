@@ -133,3 +133,11 @@ DEPLOY_MEDIUM=...
 AZURE_API_VERSION=2025-03-01-preview
 ```
 
+### HF variables
+
+To avoid those pesky Huggingface warnings, use HF_TOKEN (freely available), or un-gated embedding model.
+At the moment, the medium model is gated.
+
+```dotenv
+HF_TOKEN=...
+```
