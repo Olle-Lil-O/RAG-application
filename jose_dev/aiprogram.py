@@ -101,7 +101,7 @@ def search_similar_chunks(question_embedding, top_k=TOP_K):
         register_vector(cur)
         cur.execute("""
             SELECT content, 1 - (embedding <=> %s::vector) AS similarity
-            FROM knowledge_base
+            FROM knowledge_base_md
             ORDER BY embedding <=> %s::vector
             LIMIT %s;
         """, (question_embedding, question_embedding, top_k))
@@ -343,5 +343,5 @@ with gr.Blocks(theme=gr.themes.Soft(), title="EU AI Act Assistant") as demo:
 
 if __name__ == "__main__":
     print("Starting EU AI Act Assistant...")
-    print("Open your browser at http://localhost:7867\n")
-    demo.launch(server_name="0.0.0.0", server_port=7867)
+    print("Open your browser at http://localhost:7861\n")
+    demo.launch(server_name="0.0.0.0", server_port=7861, share=True)
