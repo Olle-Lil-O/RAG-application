@@ -83,13 +83,14 @@ def semantic_retrieve(
         cur.execute("SAVEPOINT semantic_vector_bind")
         try:
             cur.execute(sql, (vector_list, vector_list, top_k))
+            rows = cur.fetchall()
             cur.execute("RELEASE SAVEPOINT semantic_vector_bind")
         except PsycopgError:
             vector_literal = _vector_literal(query_embedding)
             cur.execute("ROLLBACK TO SAVEPOINT semantic_vector_bind")
             cur.execute(sql, (vector_literal, vector_literal, top_k))
+            rows = cur.fetchall()
             cur.execute("RELEASE SAVEPOINT semantic_vector_bind")
-        rows = cur.fetchall()
     return _rows_to_objects(rows)
 
 
@@ -146,13 +147,14 @@ def hybrid_retrieve(
         cur.execute("SAVEPOINT hybrid_vector_bind")
         try:
             cur.execute(sql, (query_text, vector_list, top_k, candidate_k, rrf_k))
+            rows = cur.fetchall()
             cur.execute("RELEASE SAVEPOINT hybrid_vector_bind")
         except PsycopgError:
             vector_literal = _vector_literal(query_embedding)
             cur.execute("ROLLBACK TO SAVEPOINT hybrid_vector_bind")
             cur.execute(sql, (query_text, vector_literal, top_k, candidate_k, rrf_k))
+            rows = cur.fetchall()
             cur.execute("RELEASE SAVEPOINT hybrid_vector_bind")
-        rows = cur.fetchall()
     return _rows_to_objects(rows)
 
 
