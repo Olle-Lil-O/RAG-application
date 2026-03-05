@@ -297,7 +297,14 @@ def chat(user_message, history):
 
 
 # ─── 1Gradio UI ───────
-with gr.Blocks(theme=gr.themes.Soft(), title="EU AI Act Assistant") as demo:
+
+js = "() => document.documentElement.setAttribute('data-theme', 'light')"
+
+with gr.Blocks(
+    theme=gr.themes.Soft(),
+    js=js,
+    title="EU AI Act Assistant"
+) as demo:
 
     gr.Markdown("""
     # 🇪🇺 EU AI Act Assistant
@@ -305,15 +312,15 @@ with gr.Blocks(theme=gr.themes.Soft(), title="EU AI Act Assistant") as demo:
     """)
 
     chatbot = gr.Chatbot(
-        value=[[None, WELCOME_MESSAGE]],
+        value=[{"role": "assistant", "content": WELCOME_MESSAGE}],
         height=550,
         label="EU AI Act Assistant",
-        bubble_full_width=False
+        type="messages"
     )
 
     with gr.Row():
         msg = gr.Textbox(
-            placeholder="Ask a question about the EU AI Act, or type 'tips' for popular topics...",
+            placeholder="Ask a question about the EU AI Act or type 'tips' for popular topics...",
             scale=9,
             show_label=False,
             container=False
@@ -337,11 +344,11 @@ with gr.Blocks(theme=gr.themes.Soft(), title="EU AI Act Assistant") as demo:
     ).then(lambda: "", outputs=msg)
 
     clear_btn.click(
-        fn=lambda: [[None, WELCOME_MESSAGE]],
+        fn=lambda: [{"role": "assistant", "content": WELCOME_MESSAGE}],
         outputs=chatbot
     )
 
 if __name__ == "__main__":
     print("Starting EU AI Act Assistant...")
     print("Open your browser at http://localhost:7861\n")
-    demo.launch(server_name="0.0.0.0", server_port=7861, share=True)
+    demo.launch(server_name="0.0.0.0", server_port=7861)
