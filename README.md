@@ -1,5 +1,7 @@
 # RAG-application
 
+Two dedicated apps: a loader that chunks/passes PDFs into knowledge base (hybrid postgres) and a chat/query surface that retrieves context from the populated tables, and answers user's questions based on the source material.
+
 ## Web UIs
 
 * **Loader (`app_loader.py`)** – Gradio UI mirroring `pipeline.py`’s options. Upload or point to a PDF, select mini/small/medium, tweak chunking/Azure overrides, and truncate/dry-run before writing. Launch with `uv run app_loader.py`; set `PROFILE` before launching if you want a different default target table (`md` is the default profile, so the loader starts on medium unless you override it).
@@ -29,6 +31,14 @@ Install dependencies (one-time):
 ```bash
 uv sync
 ```
+
+## Technical stack
+
+- **Docker Compose** – orchestrates the `pgvector_database` (based on the PostgreSQL 18/pgvector image) and `database-migrations` containers that run Flyway against the shared volume. The base table schema, pgvector vectors, and pg_search indexes are defined via the `database-migrations` service.
+- **PDF + chunking pipeline** – `scripts/preprocess.py` relies on `pdfplumber`, spaCy (`en_core_web_sm` default), and sentence-transformers/OpenAI/Azure embeddings for chunking and encoding before pushing rows into Postgres.
+- **LangChain + Hugging Face** – `chat_manager.py` builds retrievers (semantic/lexical/hybrid via PGVector/Hugging Face + pg_search) plus reranking retrievers that call `gpt-4o-mini`. Hugging Face tokenizers/models run locally (`sentence-transformers`), while other refreshing embeddings may hit Azure or OpenAI based on `DEPLOY_*` env vars.
+- **Gradio / CLI entry points** – the loader uses Gradio (`app_loader.py`) to wrap the same preprocess arguments, while `pipeline.py` provides a CLI shortcut to truncation, preprocessing, and step selection. Both share `utils/loader_utils.py` and the `scripts/preprocess.py` invocation.
+- **Supporting libraries** – `psycopg2`/`pgvector`/`pg_search` connectors, `dotenv` env loading, and `uvicorn`/`uv` task runner glue everything together under the `pyproject.toml` dependencies so the repo stays interpreter-agnostic.
 
 ## CLI options
 
