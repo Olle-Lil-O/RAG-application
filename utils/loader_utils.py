@@ -101,29 +101,31 @@ def run_step(*, step_args: Dict[str, List[str]], base_args: List[str]) -> None:
 
 
 def mini_step() -> Dict[str, List[str]]:
-    return {
-        "name": "knowledge_base_mini",
-        "args": [
-            "--table",
-            "knowledge_base_mini",
-            "--provider",
-            "local",
-            "--local-model",
-            "sentence-transformers/all-MiniLM-L6-v2",
-        ],
-    }
+    return _local_step(
+        table_name="knowledge_base_mini",
+        model_env="DEPLOY_MINI",
+        default_model="sentence-transformers/all-MiniLM-L6-v2",
+    )
 
 
 def small_step() -> Dict[str, List[str]]:
+    return _local_step(
+        table_name="knowledge_base_sm",
+        model_env="DEPLOY_SMALL",
+        default_model="BAAI/bge-large-en-v1.5",
+    )
+
+
+def _local_step(table_name: str, model_env: str, default_model: str) -> Dict[str, List[str]]:
     return {
-        "name": "knowledge_base_sm",
+        "name": table_name,
         "args": [
             "--table",
-            "knowledge_base_sm",
+            table_name,
             "--provider",
             "local",
             "--local-model",
-            "BAAI/bge-large-en-v1.5",
+            env_or_default(model_env, default_model),
         ],
     }
 
