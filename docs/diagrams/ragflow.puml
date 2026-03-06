@@ -1,0 +1,32 @@
+@startuml
+!theme plain
+
+title Retrieval modes & reranking
+
+actor User
+
+rectangle "Chat UI" {
+  component "app_query.py" as chat_ui
+  component "ChatManagerWithTools" as chat_manager
+}
+
+rectangle "Retrieval orchestrator" as retrieval {
+  component "utils/retrieval_functions" as retrieval_fn
+  component "Context reranker" as reranker
+}
+
+rectangle "Data stores" {
+  database "PostgreSQL + pgvector + pg_search" as vector_db {
+    component "knowledge_base_mini/sm/md" as kb_tables
+  }
+}
+
+User --> chat_ui : ask question + choose sources
+chat_ui --> chat_manager : load PROFILE -> table + embedding
+chat_manager --> retrieval_fn : fetch contexts
+retrieval_fn --> vector_db : "search by:\nsemantic\nlexical\nhybrid\n similarity"
+retrieval_fn --> reranker : rerank + assemble context
+reranker --> chat_manager : send context + citations
+chat_manager --> User : display response (text, links)
+
+@enduml

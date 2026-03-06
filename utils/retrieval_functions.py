@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, asdict
-from typing import Any, Literal, Mapping, Sequence
+from typing import Any, Literal, Mapping, Sequence, Optional
 
 import psycopg2
 from psycopg2 import Error as PsycopgError
@@ -62,6 +62,7 @@ def semantic_retrieve(
     profile: Profile,
     query_embedding: Sequence[float],
     top_k: int = 8,
+    source_filter: Optional[str] = None,
 ) -> list[RetrievalRow]:
     table_name, vector_dim = _profile_meta(profile)
     vector_list = _as_float_list(query_embedding)
@@ -75,6 +76,7 @@ def semantic_retrieve(
             NULL::double precision AS text_score,
             NULL::double precision AS rrf_score
         FROM {table_name}
+        WHERE (%s IS NULL OR source = %s)
         ORDER BY embedding <=> %s::vector({vector_dim}), id
         LIMIT %s
     """
@@ -82,13 +84,13 @@ def semantic_retrieve(
     with conn.cursor() as cur:
         cur.execute("SAVEPOINT semantic_vector_bind")
         try:
-            cur.execute(sql, (vector_list, vector_list, top_k))
+            cur.execute(sql, (source_filter, source_filter, vector_list, vector_list, top_k))
             rows = cur.fetchall()
             cur.execute("RELEASE SAVEPOINT semantic_vector_bind")
         except PsycopgError:
             vector_literal = _vector_literal(query_embedding)
             cur.execute("ROLLBACK TO SAVEPOINT semantic_vector_bind")
-            cur.execute(sql, (vector_literal, vector_literal, top_k))
+            cur.execute(sql, (source_filter, source_filter, vector_literal, vector_literal, top_k))
             rows = cur.fetchall()
             cur.execute("RELEASE SAVEPOINT semantic_vector_bind")
     return _rows_to_objects(rows)
@@ -101,6 +103,7 @@ def lexical_retrieve(
     query_text: str,
     top_k: int = 8,
     ts_config: str = "english",
+    source_filter: Optional[str] = None,
 ) -> list[RetrievalRow]:
     table_name, _ = _profile_meta(profile)
 
@@ -113,13 +116,25 @@ def lexical_retrieve(
             ts_rank_cd(content_tsv, websearch_to_tsquery(%s, %s)) AS text_score,
             NULL::double precision AS rrf_score
         FROM {table_name}
-        WHERE content_tsv @@ websearch_to_tsquery(%s, %s)
+        WHERE (%s IS NULL OR source = %s)
+        AND content_tsv @@ websearch_to_tsquery(%s, %s)
         ORDER BY text_score DESC, id
         LIMIT %s
     """
 
     with conn.cursor() as cur:
-        cur.execute(sql, (ts_config, query_text, ts_config, query_text, top_k))
+        cur.execute(
+            sql,
+            (
+                source_filter,
+                source_filter,
+                ts_config,
+                query_text,
+                ts_config,
+                query_text,
+                top_k,
+            ),
+        )
         rows = cur.fetchall()
     return _rows_to_objects(rows)
 
@@ -133,6 +148,7 @@ def hybrid_retrieve(
     top_k: int = 8,
     candidate_k: int = 100,
     rrf_k: int = 60,
+    source_filter: Optional[str] = None,
 ) -> list[RetrievalRow]:
     _, vector_dim = _profile_meta(profile)
     vector_list = _as_float_list(query_embedding)
@@ -140,22 +156,58 @@ def hybrid_retrieve(
     function_name = f"search_knowledge_base_{profile}_hybrid"
     sql = f"""
         SELECT id, source, content, vector_similarity, text_score, rrf_score
-        FROM {function_name}(%s, %s::vector({vector_dim}), %s, %s, %s)
+        FROM {function_name}(%s, %s::vector({vector_dim}), %s, %s, %s) AS t
+        WHERE (%s IS NULL OR t.source = %s)
     """
 
     with conn.cursor() as cur:
         cur.execute("SAVEPOINT hybrid_vector_bind")
         try:
-            cur.execute(sql, (query_text, vector_list, top_k, candidate_k, rrf_k))
+            cur.execute(
+                sql,
+                (
+                    query_text,
+                    vector_list,
+                    top_k,
+                    candidate_k,
+                    rrf_k,
+                    source_filter,
+                    source_filter,
+                ),
+            )
             rows = cur.fetchall()
             cur.execute("RELEASE SAVEPOINT hybrid_vector_bind")
         except PsycopgError:
             vector_literal = _vector_literal(query_embedding)
             cur.execute("ROLLBACK TO SAVEPOINT hybrid_vector_bind")
-            cur.execute(sql, (query_text, vector_literal, top_k, candidate_k, rrf_k))
+            cur.execute(
+                sql,
+                (
+                    query_text,
+                    vector_literal,
+                    top_k,
+                    candidate_k,
+                    rrf_k,
+                    source_filter,
+                    source_filter,
+                ),
+            )
             rows = cur.fetchall()
             cur.execute("RELEASE SAVEPOINT hybrid_vector_bind")
     return _rows_to_objects(rows)
+
+
+def list_sources(
+    conn: psycopg2.extensions.connection,
+    *,
+    profile: Profile,
+) -> list[str]:
+    table_name, _ = _profile_meta(profile)
+    sql = f"SELECT DISTINCT source FROM {table_name} WHERE source IS NOT NULL ORDER BY source"
+    with conn.cursor() as cur:
+        cur.execute(sql)
+        rows = cur.fetchall()
+    return [row[0] for row in rows]
 
 
 def open_connection(dsn: str) -> psycopg2.extensions.connection:

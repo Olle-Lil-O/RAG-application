@@ -1,36 +1,44 @@
 # RAG-application
 
-## Local data population (single command)
+Two dedicated apps: a loader that chunks/passes PDFs into knowledge base (hybrid postgres) and a chat/query surface that retrieves context from the populated tables, and answers user's questions based on the source material.
 
-Use `pipeline.py` from the project root. This is the recommended cross-platform flow for everyone.
+## Web UIs
+
+* **Loader (`app_loader.py`)** – Gradio UI mirroring `pipeline.py`’s options. Upload or point to a PDF, select mini/small/medium, tweak chunking/Azure overrides, and truncate/dry-run before writing. Launch with `uv run app_loader.py`; set `PROFILE` before launching if you want a different default target table (`md` is the default profile, so the loader starts on medium unless you override it).
+* **Chat (`app_query.py`)** – Tool-enabled assistant that queries the populated tables. It checks `PROFILE` (`mini`, `sm`, or `md`, default `md`) to decide which table/embedding pair to hit and reads the corresponding embedding model from `DEPLOY_MINI`, `DEPLOY_SMALL`, or `DEPLOY_MEDIUM`. Run `uv run app_query.py` after loading data. To launch the UI with a specific profile, prefix the command with `PROFILE=mini uv run ...` (or `sm`/`md`).
+
+Both UIs and the CLI share the same env-loading order: `project.env`, `.env`, then `--env-file` (pipeline default is `.env`).
+
+## Local data population (single command)
 
 ```bash
 uv run pipeline.py
 ```
 
-The pipeline targets your local Docker PostgreSQL (via `.env`) and populates:
-
-- `knowledge_base_mini` (local embeddings)
-- `knowledge_base_sm` (local embeddings)
-
-It also truncates `knowledge_base_mini`, `knowledge_base_sm`, and `knowledge_base_md` before loading (unless disabled with options below).
-
-Note: The same dataset/database setup is also available on a remote Azure PostgreSQL Flexible Server. Connection details can be requested from Paavo.
+That run truncates `knowledge_base_mini`, `knowledge_base_sm`, and `knowledge_base_md` (unless you set `--skip-empty`) and populates the mini/small tables by default.
 
 ## Prerequisites
 
-Start local DB + migrations:
+Start the local DB/migrations:
 
 ```bash
 docker compose up -d database
 docker compose run --rm database-migrations
 ```
 
-Install deps (first time only):
+Install dependencies (one-time):
 
 ```bash
 uv sync
 ```
+
+## Technical stack
+
+- **Docker Compose** – orchestrates the `pgvector_database` (based on the PostgreSQL 18/pgvector image) and `database-migrations` containers that run Flyway against the shared volume. The base table schema, pgvector vectors, and pg_search indexes are defined via the `database-migrations` service.
+- **PDF + chunking pipeline** – `scripts/preprocess.py` relies on `pdfplumber`, spaCy (`en_core_web_sm` default), and sentence-transformers/OpenAI/Azure embeddings for chunking and encoding before pushing rows into Postgres.
+- **LangChain + Hugging Face** – `chat_manager.py` builds retrievers (semantic/lexical/hybrid via PGVector/Hugging Face + pg_search) plus reranking retrievers that call `gpt-4o-mini`. Hugging Face tokenizers/models run locally (`sentence-transformers`), while other refreshing embeddings may hit Azure or OpenAI based on `DEPLOY_*` env vars.
+- **Gradio / CLI entry points** – the loader uses Gradio (`app_loader.py`) to wrap the same preprocess arguments, while `pipeline.py` provides a CLI shortcut to truncation, preprocessing, and step selection. Both share `utils/loader_utils.py` and the `scripts/preprocess.py` invocation.
+- **Supporting libraries** – `psycopg2`/`pgvector`/`pg_search` connectors, `dotenv` env loading, and `uvicorn`/`uv` task runner glue everything together under the `pyproject.toml` dependencies so the repo stays interpreter-agnostic.
 
 ## CLI options
 
@@ -38,63 +46,28 @@ uv sync
 uv run pipeline.py --help
 ```
 
-Available options:
+### Table targeting
 
-- `--env-file <path>`: extra env file loaded last (default: `.env`)
-- `--pdf-path <path>`: override input PDF path
-- `--source <name>`: override source name stored in DB
-- `--skip-empty`: do not truncate tables before loading
-- `--dry-run`: run preprocessing without DB writes
 - `--mini`: populate only `knowledge_base_mini`
 - `--small`: populate only `knowledge_base_sm`
-- `--medium`: populate only `knowledge_base_md`
-- `--all`: populate mini + small + medium
+- `--medium`: populate only `knowledge_base_md` (Azure creds required)
+- `--all`: run mini + small + medium
+- `--skip-empty`: skip the initial truncation step
+- `--dry-run`: preprocess without writing
 
-## Common examples
+### Input overrides
 
-Default local run:
-
-```bash
-uv run pipeline.py
-```
-
-Non-destructive check:
-
-```bash
-uv run pipeline.py --dry-run
-```
-
-Use a custom PDF:
-
-```bash
-uv run pipeline.py --pdf-path data/mydoc.pdf --source mydoc.pdf
-```
-
-Populate only medium (keep existing mini/small rows):
-
-```bash
-uv run pipeline.py --medium --skip-empty
-```
-
-Populate all three tables in one run:
-
-```bash
-uv run pipeline.py --all
-```
+- `--pdf-path`: override the PDF path
+- `--source`: override the source name stored in the DB
+- `--env-file`: extra env file loaded last (defaults to `.env`)
 
 ## Environment variables
 
-`pipeline.py` loads env files in this order:
+All runners load env vars from `project.env`, then `.env`, then `--env-file` (if supplied).
 
-1. `project.env`
-2. `.env`
-3. `--env-file` (defaults to `.env`)
+### Local Postgres
 
-### Required for local container DB
-
-Set these in `.env`:
-
-```dotenv
+```env
 PGHOST=localhost
 PGPORT=5431
 PGDATABASE=postgres
@@ -103,11 +76,9 @@ PGPASSWORD=password
 PGSSLMODE=disable
 ```
 
-### Chunking and preprocessing
+### Chunking and preprocessing defaults
 
-Optional, with defaults shown:
-
-```dotenv
+```env
 PDF_PATH=data/euaiact.pdf
 SOURCE_NAME=euaiact.pdf
 
@@ -124,20 +95,23 @@ MAX_EMBED_TOKENS=2000
 SPLIT_OVERLAP_TOKENS=80
 ```
 
-### Azure variables (required when using `--medium` or `--all`)
+### Azure embedding overrides (for `--medium`/`--all` or the medium loader step)
 
-```dotenv
+```env
 AZURE_ENDPOINT=...
 AZURE_API_KEY=...
 DEPLOY_MEDIUM=...
 AZURE_API_VERSION=2025-03-01-preview
 ```
 
-### HF variables
+### Embedding profile hints
 
-To avoid those pesky Huggingface warnings, use HF_TOKEN (freely available), or un-gated embedding model.
-At the moment, the medium model is gated.
+Set `PROFILE` (`mini`, `sm`, or `md`) to tell `app_query.py` which table/embedding pair to use. The chat manager then pulls the embedding model from the matching `DEPLOY_*` env var, so swap in gated models as needed.
 
-```dotenv
+### Hugging Face
+
+Provide `HF_TOKEN` to avoid Hugging Face rate-limit warnings, especially when using gated medium embeddings:
+
+```env
 HF_TOKEN=...
 ```
