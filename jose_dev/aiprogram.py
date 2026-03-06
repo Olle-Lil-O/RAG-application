@@ -24,19 +24,17 @@ import gradio as gr
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # ─── Load environment variables ─────
-load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
-
-AZURE_ENDPOINT = os.environ["AZURE_ENDPOINT"]
-AZURE_API_KEY = os.environ["AZURE_API_KEY"]
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
+AZURE_ENDPOINT = os.getenv("AZURE_ENDPOINT")
+AZURE_API_KEY = os.getenv("AZURE_API_KEY")
 AZURE_API_VERSION = os.getenv("AZURE_API_VERSION", "2024-02-01")
-DEPLOY_LARGE = os.environ["DEPLOY_LARGE"]
-DEPLOY_GPT = os.environ["DEPLOY_GPT"]
-
-PGUSER = os.environ["PGUSER"]
-PGPASSWORD = os.environ["PGPASSWORD"]
-PGHOST = os.environ["PGHOST"]
+DEPLOY_LARGE = os.getenv("DEPLOY_MEDIUM")
+DEPLOY_GPT = os.getenv("DEPLOY_GPT", "gpt-4.1-mini")
+PGUSER = os.getenv("PGUSER")
+PGPASSWORD = os.getenv("PGPASSWORD")
+PGHOST = os.getenv("PGHOST")
 PGPORT = os.getenv("PGPORT", "5433")
-PGDATABASE = os.environ["PGDATABASE"]
+PGDATABASE = os.getenv("PGDATABASE")
 
 TOP_K = 5
 
@@ -235,11 +233,17 @@ def chat(user_message, history):
 
     # Handle special commands
     if user_message.lower() == "exit":
-        return history + [[user_message, "👋 Bye! Thanks for using the EU AI Act assistant."]]
+        return history + [
+            {"role": "user", "content": user_message},
+            {"role": "assistant", "content": "👋 Bye! Thanks for using the EU AI Act assistant."},
+        ]
 
     if user_message.lower() == "tips":
         topics_text = "**Popular topics you can ask about:**\n\n" + "\n".join(POPULAR_TOPICS)
-        return history + [[user_message, topics_text]]
+        return history + [
+            {"role": "user", "content": user_message},
+            {"role": "assistant", "content": topics_text},
+        ]
 
     if not user_message:
         return history
@@ -289,11 +293,17 @@ def chat(user_message, history):
 
         full_response = "".join(response_parts)
 
-        return history + [[user_message, full_response]]
+        return history + [
+            {"role": "user", "content": user_message},
+            {"role": "assistant", "content": full_response},
+        ]
 
     except Exception as e:
         error_msg = f"Something went wrong: {str(e)}"
-        return history + [[user_message, error_msg]]
+        return history + [
+            {"role": "user", "content": user_message},
+            {"role": "assistant", "content": error_msg},
+        ]
 
 
 # ─── 1Gradio UI ───────
