@@ -5,7 +5,7 @@ paginate: true
 class: lead
 ---
 
-## Goal for the App/Project
+# Goal for the App/Project
 
 - Offer an LLM chat interface where you can upload books/manuals and trust the answers are anchored in those documents
 - Surface relevant snippets, similarity confidence, and reranking so the assistant stays grounded instead of hallucinating
