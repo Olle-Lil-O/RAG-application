@@ -6,7 +6,7 @@ Use `pipeline.py` from the project root. This is the recommended cross-platform 
 
 ```bash
 uv run pipeline.py
-```
+``` 
 
 The pipeline targets your local Docker PostgreSQL (via `.env`) and populates:
 
