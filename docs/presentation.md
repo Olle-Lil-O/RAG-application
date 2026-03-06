@@ -5,6 +5,14 @@ paginate: true
 class: lead
 ---
 
+## Goal for the App/Project
+
+- Offer an LLM chat interface where you can upload books/manuals and trust the answers are anchored in those documents
+- Surface relevant snippets, similarity confidence, and reranking so the assistant stays grounded instead of hallucinating
+- Keep the workflow accessible via Gradio loader + CLI while centralizing embedding/data handling
+
+---
+
 # RAG-application demo
 
 - Interactive loader lets you upload books/docs and choose the target profile (mini/sm/md)
@@ -13,13 +21,6 @@ class: lead
 
 ---
 
-## Goal
-
-- Offer an LLM chat interface where you can upload books/manuals and trust the answers are anchored in those documents
-- Surface relevant snippets, similarity confidence, and reranking so the assistant stays grounded instead of hallucinating
-- Keep the workflow accessible via Gradio loader + CLI while centralizing embedding/data handling
-
----
 
 ## Demo goal
 
