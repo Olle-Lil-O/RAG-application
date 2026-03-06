@@ -102,7 +102,7 @@ def run_loader(
     truncate,
     dry_run,
 ) -> str:
-    pdf_path = uploaded_file or pdf_path_input or "data/euaiact.pdf"
+    pdf_path = uploaded_file or pdf_path_input or "data/silmarillion.pdf"
     if not pdf_path:
         return "Provide a PDF path or upload a file."
 
@@ -147,7 +147,7 @@ with gr.Blocks(title="Knowledge Base Loader") as loader_app:
         path_input = gr.Textbox(
             label="Or enter PDF path",
             placeholder="data/document.pdf",
-            value="data/euaiact.pdf",
+            value="data/silmarillion.pdf",
         )
 
     source_text = gr.Textbox(label="Source name (optional)")
